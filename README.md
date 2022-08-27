@@ -1,0 +1,3 @@
+# I
+
+I is a command for making cli tools interactive in the Acme editor. Execute `I <cli>` and your command will be executed in the body of a new window. Button 2 clicks on text in the window will append the clicked text as a new argument for your command, clear the output, and re-execute it. Button 2 of the `Back` command in the tag will remove the newest argument and rerun. The `Get` command rerun's the command as is.
