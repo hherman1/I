@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"errors"
+	"flag"
 	"fmt"
 	"io"
 	"os"
@@ -21,6 +22,8 @@ func main() {
 	}
 }
 
+var auto = flag.Bool("a", false, "auto-runs commands on edit")
+
 var win *acme.Win
 var run struct {
 	// Synchronizes access to the output buffer and to the details of the current running command.
@@ -31,7 +34,8 @@ var run struct {
 }
 
 func start() error {
-	cmd := strings.Join(os.Args[1:], " ")
+	flag.Parse()
+	cmd := strings.Join(flag.Args(), " ")
 	if cmd == "" {
 		return errors.New("no command given")
 	}
@@ -47,7 +51,9 @@ func start() error {
 	}
 	win.Name(filepath.Join(pwd, "+I"))
 	win.Write("data", []byte(fmt.Sprintf("%% %v\n", cmd)))
-	win.Fprintf("tag", "Get Back")
+	win.Addr("0")
+	win.Ctl("dot=addr")
+	win.Fprintf("tag", "Get Back Auto")
 
 	err = launch()
 	if err != nil {
@@ -55,7 +61,8 @@ func start() error {
 	}
 
 	for e := range win.EventChan() {
-		if e.C2 == 'X' {
+
+		if !*auto && e.C2 == 'X' {
 			run.Lock()
 			bs, err := win.ReadAll("body")
 			if err != nil {
@@ -72,6 +79,14 @@ func start() error {
 			win.Write("data", []byte{' '})
 			win.Write("data", e.Text)
 			run.Unlock()
+			err = launch()
+			if err != nil {
+				return fmt.Errorf("launching: %w", err)
+			}
+			continue
+		}
+		if e.C2 == 'x' && string(e.Text) == "Auto" {
+			*auto = !*auto
 			err = launch()
 			if err != nil {
 				return fmt.Errorf("launching: %w", err)
@@ -110,6 +125,42 @@ func start() error {
 		if e.C2 == 'x' && string(e.Text) == "Del" {
 			win.Ctl("delete")
 		}
+		if *auto && (e.C2 == 'D' || e.C2 == 'I') {
+			// Clean input
+			run.Lock()
+			bs, err := win.ReadAll("body")
+			if err != nil {
+				run.Unlock()
+				return fmt.Errorf("read data: %w", err)
+			}
+			find := -1
+			shouldRun := false
+			for i, b := range []rune(string(bs)) {
+				if b == '%' && find == -1 {
+					find = i
+					continue
+				}
+				if i == e.Q0 && find != -1 {
+					shouldRun = true
+					break
+				}
+				if b == '\n' {
+					find = -1
+					continue
+				}
+			}
+			run.Unlock()
+			win.WriteEvent(e)
+			if shouldRun {
+				err = launch()
+				if err != nil {
+					return fmt.Errorf("Get: launch: %w", err)
+				}
+			}
+			continue
+		}
+		//fmt.Printf("%+v\n", e)
+		//fmt.Printf("%v\n", string(e.C2))
 		win.WriteEvent(e)
 	}
 	return nil
@@ -214,6 +265,7 @@ func execute(id int, c string) {
 			break
 		}
 		if id == run.id && n > 0 {
+			win.Ctl("show")
 			win.Write("data", buf[:n])
 		}
 		run.Unlock()
