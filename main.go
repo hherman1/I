@@ -126,7 +126,6 @@ func start() error {
 			win.Ctl("delete")
 		}
 		if *auto && (e.C2 == 'D' || e.C2 == 'I') && e.Q0 < 1000 { // Q0 check is just an optimization so we don't contend with ourselves too often
-			fmt.Printf("event: %v", run.id)
 			// Clean input
 			run.Lock()
 			bs, err := win.ReadAll("body")
