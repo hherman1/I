@@ -125,7 +125,8 @@ func start() error {
 		if e.C2 == 'x' && string(e.Text) == "Del" {
 			win.Ctl("delete")
 		}
-		if *auto && (e.C2 == 'D' || e.C2 == 'I') {
+		if *auto && (e.C2 == 'D' || e.C2 == 'I') && e.Q0 < 1000 { // Q0 check is just an optimization so we don't contend with ourselves too often
+			fmt.Printf("event: %v", run.id)
 			// Clean input
 			run.Lock()
 			bs, err := win.ReadAll("body")
@@ -174,6 +175,9 @@ func clear() (string, error) {
 	if err != nil {
 		return "", fmt.Errorf("read data: %w", err)
 	}
+	if len(bs) == 0 {
+		return "", nil
+	}
 	find := -1
 	for i, b := range []rune(string(bs)) {
 		if b == '\n' {
@@ -184,8 +188,9 @@ func clear() (string, error) {
 	if find != -1 {
 		win.Addr("#%d,", find+1)
 		win.Write("data", nil)
+	} else {
+		return strings.TrimSpace(string(bs[1:])), nil
 	}
-	//win.Addr("#0")
 	return strings.TrimSpace(string(bs[1:find])), nil
 }
 
@@ -265,8 +270,8 @@ func execute(id int, c string) {
 			break
 		}
 		if id == run.id && n > 0 {
-			win.Ctl("show")
 			win.Write("data", buf[:n])
+			win.Ctl("show")
 		}
 		run.Unlock()
 	}
