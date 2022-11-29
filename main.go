@@ -159,8 +159,6 @@ func start() error {
 			}
 			continue
 		}
-		//fmt.Printf("%+v\n", e)
-		//fmt.Printf("%v\n", string(e.C2))
 		win.WriteEvent(e)
 	}
 	return nil
@@ -252,7 +250,10 @@ func execute(id int, c string) {
 	run.cmd = cmd
 	run.Unlock()
 
+	// Reset dot
+
 	buf := make([]byte, 4096)
+	write := 0
 	for {
 		n, err := r.Read(buf)
 		if err == io.EOF {
@@ -270,7 +271,10 @@ func execute(id int, c string) {
 		}
 		if id == run.id && n > 0 {
 			win.Write("data", buf[:n])
-			win.Ctl("show")
+			if write < 1000 {
+				win.Ctl("show")
+				write++
+			}
 		}
 		run.Unlock()
 	}
